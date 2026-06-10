@@ -178,12 +178,8 @@ function createAlumniDirectoryForm() {
     .showOtherOption(true)
     .setRequired(false);
 
-  // ===== SECTION 6: Board & directory consent (everyone lands here) =====
-  var finalPage = form.addPageBreakItem().setTitle('6. Board & Directory Consent');
-  form.addMultipleChoiceItem()
-    .setTitle('Willing to join the Board of the Association?')
-    .setChoiceValues(['Yes', 'No', 'Not sure'])
-    .setRequired(false);
+  // ===== SECTION 6: Directory consent (everyone lands here) =====
+  var finalPage = form.addPageBreakItem().setTitle('6. Directory Consent');
   form.addCheckboxItem()
     .setTitle('Consent')
     .setHelpText('Required in order to be included in the directory.')
@@ -217,7 +213,7 @@ function createAlumniDirectoryForm() {
     volunteerQ.createChoice('Yes', volunteerDetails),
     volunteerQ.createChoice('No', finalPage)
   ]);
-  volunteerDetails.setGoToPage(finalPage); // after specialties, go to Board & Consent
+  volunteerDetails.setGoToPage(finalPage); // after specialties, go to Consent
 
   // ===== Create a linked spreadsheet — this becomes your directory =====
   var ss = SpreadsheetApp.create('XMUAA-GS Member Directory (Responses)');
