@@ -167,13 +167,17 @@ function createAlumniDirectoryForm() {
     .setRequired(false);
   var volunteerQ = form.addMultipleChoiceItem()
     .setTitle("Are you willing to volunteer with the association's activities?")
+    .setHelpText('Your answer is viewed by the management team only — it will NOT '
+      + 'appear in the member directory.')
     .setRequired(true);
 
   // Detail page: volunteer specialties
   var volunteerDetails = form.addPageBreakItem().setTitle('Volunteering — Your Specialties');
   form.addCheckboxItem()
     .setTitle('Volunteer Specialties')
-    .setHelpText('What kinds of volunteer work would you enjoy helping with? Select all that apply.')
+    .setHelpText('What kinds of volunteer work would you enjoy helping with? Select all '
+      + 'that apply. Viewed by the management team only — this will NOT appear in the '
+      + 'member directory.')
     .setChoiceValues([
       'Event Planning',
       'Leadership Roles',
@@ -190,10 +194,14 @@ function createAlumniDirectoryForm() {
   var finalPage = form.addPageBreakItem().setTitle('6. Directory Consent');
   form.addCheckboxItem()
     .setTitle('Consent')
-    .setHelpText('Required in order to be included in the directory.')
+    .setHelpText('Required in order to be included in the directory. The directory is '
+      + 'shared only with verified members of the association.')
     .setChoiceValues([
-      'I consent to having the information above included in the members-only ' +
-      'directory shared within the association.'
+      'I consent to having my name, education background, contact information, ' +
+      'professional information, and interests included in the members-only ' +
+      'directory shared within the association. I understand that my answers to ' +
+      'the volunteering questions are viewed by the management team only and ' +
+      'will not appear in the directory.'
     ])
     .setRequired(true);
 
