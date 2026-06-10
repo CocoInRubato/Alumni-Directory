@@ -132,8 +132,8 @@ function createAlumniDirectoryForm() {
   form.addTextItem().setTitle('Company').setRequired(false);
   form.addTextItem().setTitle('Title').setRequired(false);
   form.addCheckboxItem()
-    .setTitle('Specialties')
-    .setHelpText('Select all that apply.')
+    .setTitle('Industry')
+    .setHelpText('Which industry (or industries) do you work in? Select all that apply.')
     .setChoiceValues([
       'Technology / Software',
       'Finance / Accounting',
@@ -151,19 +151,39 @@ function createAlumniDirectoryForm() {
     .showOtherOption(true)
     .setRequired(false);
 
-  // ===== SECTION 5: Community & interests =====
-  form.addSectionHeaderItem().setTitle('5. Community & Interests');
+  // ===== SECTION 5: Community & interests (own page, so volunteering can branch) =====
+  form.addPageBreakItem().setTitle('5. Community & Interests');
   form.addParagraphTextItem()
     .setTitle('Interests')
     .setHelpText('Hobbies and personal interests, e.g., hiking, photography, cooking, board games')
     .setRequired(false);
+  var volunteerQ = form.addMultipleChoiceItem()
+    .setTitle("Are you willing to volunteer with the association's activities?")
+    .setRequired(true);
+
+  // Detail page: volunteer specialties
+  var volunteerDetails = form.addPageBreakItem().setTitle('Volunteering — Your Specialties');
+  form.addCheckboxItem()
+    .setTitle('Volunteer Specialties')
+    .setHelpText('What kinds of volunteer work would you enjoy helping with? Select all that apply.')
+    .setChoiceValues([
+      'Event Planning',
+      'Leadership Roles',
+      'Administrative Support',
+      'Technical Tasks',
+      'Community Outreach',
+      'Finance & Accounting',
+      'Communications & Advocacy'
+    ])
+    .showOtherOption(true)
+    .setRequired(false);
+
+  // ===== SECTION 6: Board & directory consent (everyone lands here) =====
+  var finalPage = form.addPageBreakItem().setTitle('6. Board & Directory Consent');
   form.addMultipleChoiceItem()
     .setTitle('Willing to join the Board of the Association?')
     .setChoiceValues(['Yes', 'No', 'Not sure'])
     .setRequired(false);
-
-  // ===== SECTION 6: Directory consent =====
-  form.addSectionHeaderItem().setTitle('6. Directory Consent');
   form.addCheckboxItem()
     .setTitle('Consent')
     .setHelpText('Required in order to be included in the directory.')
@@ -192,6 +212,12 @@ function createAlumniDirectoryForm() {
     phdQ.createChoice('No', contactPage)
   ]);
   phdDetails.setGoToPage(contactPage);    // after PhD details, go to Contact
+
+  volunteerQ.setChoices([
+    volunteerQ.createChoice('Yes', volunteerDetails),
+    volunteerQ.createChoice('No', finalPage)
+  ]);
+  volunteerDetails.setGoToPage(finalPage); // after specialties, go to Board & Consent
 
   // ===== Create a linked spreadsheet — this becomes your directory =====
   var ss = SpreadsheetApp.create('XMUAA-GS Member Directory (Responses)');
