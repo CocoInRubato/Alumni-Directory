@@ -13,12 +13,20 @@
  *    (If you see an "unverified app" screen, click Advanced -> Go to project.
  *     This is normal for your own scripts.)
  * 6. When it finishes, open the log:  View -> Logs  (or press Ctrl+Enter).
- *    You'll see three links:
- *       - EDIT link    : open the form to tweak wording or order
- *       - SHARE link   : the public link you send to alumni
- *       - SHEET link   : the spreadsheet that collects responses = your directory
+ *    You'll see four links:
+ *       - EDIT link      : open the form to tweak wording or order
+ *       - SHARE link     : the public link you send to alumni
+ *       - RESPONSES link : the raw response spreadsheet — MANAGEMENT TEAM ONLY
+ *                          (contains volunteer-willingness answers)
+ *       - DIRECTORY link : the member-facing directory you share with members
+ *                          (name, education, contact, professional info,
+ *                           interests — volunteer answers are excluded)
  *
- * You can re-run this anytime to generate a fresh copy.
+ * The member-facing directory refreshes automatically after every new form
+ * submission. You can also refresh it manually anytime by running the
+ * function "publishMemberDirectory".
+ *
+ * You can re-run createAlumniDirectoryForm anytime to generate a fresh copy.
  *
  * ── ABOUT THE DEGREE SECTIONS ────────────────────────────────────────────────
  * Google Forms can only show/hide a section based on a single-answer question,
@@ -132,8 +140,8 @@ function createAlumniDirectoryForm() {
   form.addTextItem().setTitle('Company').setRequired(false);
   form.addTextItem().setTitle('Title').setRequired(false);
   form.addCheckboxItem()
-    .setTitle('Specialties')
-    .setHelpText('Select all that apply.')
+    .setTitle('Industry')
+    .setHelpText('Which industry (or industries) do you work in? Select all that apply.')
     .setChoiceValues([
       'Technology / Software',
       'Finance / Accounting',
@@ -151,19 +159,35 @@ function createAlumniDirectoryForm() {
     .showOtherOption(true)
     .setRequired(false);
 
-  // ===== SECTION 5: Community & interests =====
-  form.addSectionHeaderItem().setTitle('5. Community & Interests');
+  // ===== SECTION 5: Community & interests (own page, so volunteering can branch) =====
+  form.addPageBreakItem().setTitle('5. Community & Interests');
   form.addParagraphTextItem()
     .setTitle('Interests')
     .setHelpText('Hobbies and personal interests, e.g., hiking, photography, cooking, board games')
     .setRequired(false);
-  form.addMultipleChoiceItem()
-    .setTitle('Willing to join the Board of the Association?')
-    .setChoiceValues(['Yes', 'No', 'Not sure'])
+  var volunteerQ = form.addMultipleChoiceItem()
+    .setTitle("Are you willing to volunteer with the association's activities?")
+    .setRequired(true);
+
+  // Detail page: volunteer specialties
+  var volunteerDetails = form.addPageBreakItem().setTitle('Volunteering — Your Specialties');
+  form.addCheckboxItem()
+    .setTitle('Volunteer Specialties')
+    .setHelpText('What kinds of volunteer work would you enjoy helping with? Select all that apply.')
+    .setChoiceValues([
+      'Event Planning',
+      'Leadership Roles',
+      'Administrative Support',
+      'Technical Tasks',
+      'Community Outreach',
+      'Finance & Accounting',
+      'Communications & Advocacy'
+    ])
+    .showOtherOption(true)
     .setRequired(false);
 
-  // ===== SECTION 6: Directory consent =====
-  form.addSectionHeaderItem().setTitle('6. Directory Consent');
+  // ===== SECTION 6: Directory consent (everyone lands here) =====
+  var finalPage = form.addPageBreakItem().setTitle('6. Directory Consent');
   form.addCheckboxItem()
     .setTitle('Consent')
     .setHelpText('Required in order to be included in the directory.')
@@ -193,13 +217,95 @@ function createAlumniDirectoryForm() {
   ]);
   phdDetails.setGoToPage(contactPage);    // after PhD details, go to Contact
 
-  // ===== Create a linked spreadsheet — this becomes your directory =====
-  var ss = SpreadsheetApp.create('XMUAA-GS Member Directory (Responses)');
+  volunteerQ.setChoices([
+    volunteerQ.createChoice('Yes', volunteerDetails),
+    volunteerQ.createChoice('No', finalPage)
+  ]);
+  volunteerDetails.setGoToPage(finalPage); // after specialties, go to Consent
+
+  // ===== Create the linked response spreadsheet (management team only) =====
+  var ss = SpreadsheetApp.create('XMUAA-GS Member Directory (Responses — Management Only)');
   form.setDestination(FormApp.DestinationType.SPREADSHEET, ss.getId());
+
+  // ===== Create the member-facing directory spreadsheet =====
+  // This is the one you share with members. publishMemberDirectory() fills it
+  // with only the member-visible columns (no volunteer answers).
+  var sharedSs = SpreadsheetApp.create('XMUAA-GS Member Directory (Shared with Members)');
+
+  // Remember both spreadsheet IDs so publishMemberDirectory() can find them.
+  var props = PropertiesService.getScriptProperties();
+  props.setProperty('RESPONSES_SS_ID', ss.getId());
+  props.setProperty('SHARED_DIRECTORY_SS_ID', sharedSs.getId());
+
+  // Refresh the member-facing directory automatically on every submission.
+  ScriptApp.newTrigger('publishMemberDirectory')
+    .forSpreadsheet(ss)
+    .onFormSubmit()
+    .create();
 
   // ===== Output the links =====
   Logger.log('Form created successfully!');
-  Logger.log('EDIT the form here:    ' + form.getEditUrl());
-  Logger.log('SHARE with members:    ' + form.getPublishedUrl());
-  Logger.log('DIRECTORY spreadsheet: ' + ss.getUrl());
+  Logger.log('EDIT the form here:        ' + form.getEditUrl());
+  Logger.log('SHARE with members:        ' + form.getPublishedUrl());
+  Logger.log('RESPONSES (mgmt only):     ' + ss.getUrl());
+  Logger.log('DIRECTORY (share w/ mbrs): ' + sharedSs.getUrl());
+}
+
+/**
+ * Columns that must NOT appear in the member-facing directory.
+ * Volunteer answers are for the management team only; Timestamp and the
+ * Consent checkbox are administrative.
+ */
+var MANAGEMENT_ONLY_COLUMNS = [
+  'Timestamp',
+  "Are you willing to volunteer with the association's activities?",
+  'Volunteer Specialties',
+  'Consent'
+];
+
+/**
+ * Rebuilds the member-facing directory spreadsheet from the raw responses.
+ *
+ * - Copies only member-visible columns: name, education background, contact
+ *   info, professional info, and interests.
+ * - Includes only respondents who checked the Consent box.
+ * - Runs automatically after each form submission (trigger installed by
+ *   createAlumniDirectoryForm), and can also be run manually anytime.
+ */
+function publishMemberDirectory() {
+  var props = PropertiesService.getScriptProperties();
+  var responsesId = props.getProperty('RESPONSES_SS_ID');
+  var sharedId = props.getProperty('SHARED_DIRECTORY_SS_ID');
+  if (!responsesId || !sharedId) {
+    throw new Error('Spreadsheet IDs not found. Run createAlumniDirectoryForm first.');
+  }
+
+  var src = SpreadsheetApp.openById(responsesId).getSheets()[0];
+  var dest = SpreadsheetApp.openById(sharedId).getSheets()[0];
+  var data = src.getDataRange().getValues();
+
+  dest.clearContents();
+  if (data.length === 0) return;
+
+  var headers = data[0];
+  var consentCol = headers.indexOf('Consent');
+  var keepCols = [];
+  for (var i = 0; i < headers.length; i++) {
+    if (MANAGEMENT_ONLY_COLUMNS.indexOf(headers[i]) === -1) keepCols.push(i);
+  }
+
+  var pick = function (row) {
+    return keepCols.map(function (c) { return row[c]; });
+  };
+
+  var out = [pick(headers)];
+  for (var r = 1; r < data.length; r++) {
+    // Only list members who gave directory consent.
+    if (consentCol !== -1 && !data[r][consentCol]) continue;
+    out.push(pick(data[r]));
+  }
+
+  dest.getRange(1, 1, out.length, out[0].length).setValues(out);
+  dest.setFrozenRows(1);
+  Logger.log('Member directory refreshed: ' + (out.length - 1) + ' member(s) listed.');
 }
