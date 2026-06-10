@@ -251,6 +251,11 @@ function createAlumniDirectoryForm() {
     .onFormSubmit()
     .create();
 
+  // Seed the member-facing directory with its header row right away, so the
+  // shared sheet isn't blank before the first submission arrives.
+  SpreadsheetApp.flush();
+  publishMemberDirectory();
+
   // ===== Output the links =====
   Logger.log('Form created successfully!');
   Logger.log('EDIT the form here:        ' + form.getEditUrl());
@@ -288,12 +293,20 @@ function publishMemberDirectory() {
     throw new Error('Spreadsheet IDs not found. Run createAlumniDirectoryForm first.');
   }
 
-  var src = SpreadsheetApp.openById(responsesId).getSheets()[0];
+  // Find the "Form Responses" tab — the first tab can be an empty "Sheet1".
+  var sheets = SpreadsheetApp.openById(responsesId).getSheets();
+  var src = sheets[0];
+  for (var s = 0; s < sheets.length; s++) {
+    if (sheets[s].getName().indexOf('Form Responses') === 0) {
+      src = sheets[s];
+      break;
+    }
+  }
   var dest = SpreadsheetApp.openById(sharedId).getSheets()[0];
   var data = src.getDataRange().getValues();
 
   dest.clearContents();
-  if (data.length === 0) return;
+  if (data.length === 0 || data[0].join('') === '') return;
 
   var headers = data[0];
   var consentCol = headers.indexOf('Consent');
